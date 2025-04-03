@@ -43,8 +43,10 @@ func main() {
 		port = "3000"
 	}
 
+	// Log environment information
 	log.Printf("Server starting on port %s", port)
 	log.Printf("Environment: %s", os.Getenv("ENVIRONMENT"))
+	log.Printf("Render.com URL: %s", os.Getenv("RENDER_EXTERNAL_URL"))
 	log.Printf("LiveKit WebSocket URL: %s", os.Getenv("LIVEKIT_WS_URL"))
 	log.Fatal(app.Listen(":" + port))
 }
@@ -66,10 +68,16 @@ func getToken(c *fiber.Ctx) error {
 		})
 	}
 
+	// Determine WebSocket URL based on environment
 	wsHost := os.Getenv("LIVEKIT_WS_URL")
 	if wsHost == "" {
-		// Default to local development if not set
-		wsHost = "ws://192.168.1.9:7881"
+		// Check if we're running on Render.com
+		if os.Getenv("RENDER_EXTERNAL_URL") != "" {
+			wsHost = "wss://livekit-server-ydpb.onrender.com"
+		} else {
+			// Default to local development
+			wsHost = "ws://192.168.1.9:7881"
+		}
 	}
 
 	log.Printf("\n=== LiveKit Connection Details ===")
@@ -77,6 +85,8 @@ func getToken(c *fiber.Ctx) error {
 	log.Printf("Participant: %s\n", participant)
 	log.Printf("Token: %s\n", token)
 	log.Printf("WebSocket URL: %s\n", wsHost)
+	log.Printf("Environment: %s\n", os.Getenv("ENVIRONMENT"))
+	log.Printf("Render.com URL: %s\n", os.Getenv("RENDER_EXTERNAL_URL"))
 	log.Printf("===============================\n")
 
 	return c.JSON(fiber.Map{
