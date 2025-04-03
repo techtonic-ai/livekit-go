@@ -23,8 +23,10 @@ func main() {
 	app.Use(recover.New())
 	app.Use(logger.New())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowHeaders: "Origin, Content-Type, Accept",
+		AllowOrigins:     "*",
+		AllowHeaders:     "Origin, Content-Type, Accept",
+		AllowMethods:     "GET, POST, PUT, DELETE, OPTIONS",
+		AllowCredentials: true,
 	}))
 
 	// Routes
@@ -33,11 +35,15 @@ func main() {
 		return c.SendString("OK")
 	})
 
+	// Serve static files
+	app.Static("/", "./")
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "3000"
 	}
 
+	log.Printf("Server starting on port %s", port)
 	log.Fatal(app.Listen(":" + port))
 }
 
@@ -59,7 +65,7 @@ func getToken(c *fiber.Ctx) error {
 
 	wsHost := os.Getenv("LIVEKIT_WS_URL")
 	if wsHost == "" {
-		wsHost = "ws://" + os.Getenv("LIVEKIT_NODE_IP") + ":7881"
+		wsHost = "wss://livekit-server-ydpb.onrender.com"
 	}
 
 	log.Printf("\n=== LiveKit Connection Details ===")

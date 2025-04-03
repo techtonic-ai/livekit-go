@@ -28,13 +28,38 @@
             padding: 10px;
             background: #e0e0e0;
         }
+        .connection-options {
+            margin-bottom: 20px;
+        }
+        .input-group {
+            margin-bottom: 10px;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        .input-group input {
+            width: 300px;
+        }
     </style>
 </head>
 <body>
     <div class="config">
         <h3>Connection Settings</h3>
-        <p>API URL: <input type="text" id="apiUrl" value="https://your-render-url.onrender.com" style="width: 300px"></p>
-        <p>Room ID: demo-room</p>
+        <div class="connection-options">
+            <div class="input-group">
+                <label for="apiUrl">API URL:</label>
+                <input type="text" id="apiUrl" value="https://livekit-server-ydpb.onrender.com" readonly>
+            </div>
+            <div class="input-group">
+                <label for="wsUrl">WebSocket URL:</label>
+                <input type="text" id="wsUrl" value="wss://livekit-server-ydpb.onrender.com" readonly>
+            </div>
+            <div class="input-group">
+                <label for="roomId">Room ID:</label>
+                <input type="text" id="roomId" value="demo-room" readonly>
+            </div>
+        </div>
         <button onclick="connect('participant1')">Connect as Participant 1</button>
         <button onclick="connect('participant2')">Connect as Participant 2</button>
         <button onclick="disconnect()">Disconnect</button>
@@ -48,6 +73,8 @@
         const videosDiv = document.getElementById('videos');
         const debugDiv = document.getElementById('debug');
         const apiUrlInput = document.getElementById('apiUrl');
+        const wsUrlInput = document.getElementById('wsUrl');
+        const roomIdInput = document.getElementById('roomId');
 
         function log(message) {
             const timestamp = new Date().toISOString();
@@ -58,7 +85,11 @@
         async function connect(participant) {
             try {
                 const apiUrl = apiUrlInput.value;
+                const wsUrl = wsUrlInput.value;
+                const roomId = roomIdInput.value;
                 log(`API URL: ${apiUrl}`);
+                log(`WebSocket URL: ${wsUrl}`);
+                log(`Room ID: ${roomId}`);
 
                 // Request token from your server
                 log(`Requesting token for ${participant}`);
@@ -71,7 +102,7 @@
                 log(`WebSocket URL: ${ws_url}`);
 
                 // Connect to LiveKit room
-                log(`Connecting to room: demo-room`);
+                log(`Connecting to room: ${roomId}`);
                 room = new LivekitClient.Room({
                     adaptiveStream: true,
                     dynacast: true,
