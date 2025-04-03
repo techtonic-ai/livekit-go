@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: livekit-server
+    env: docker
+    dockerfilePath: ./Dockerfile
+    envVars:
+      - key: LIVEKIT_KEYS
+        value: "devkey: devsecret123456789012345678901234567890"
+      - key: LIVEKIT_NODE_IP
+        fromService:
+          type: web
+          name: livekit-server
+          property: host
+      - key: LIVEKIT_BIND_ADDRESSES
+        value: "0.0.0.0"
+      - key: LIVEKIT_RTC_PORT
+        value: "7881"
+      - key: LIVEKIT_WS_PORT
+        value: "7881"
+      - key: LIVEKIT_WS_BIND_ADDRESS
+        value: "0.0.0.0" 

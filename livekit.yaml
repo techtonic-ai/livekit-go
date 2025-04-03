@@ -1,0 +1,23 @@
+port: 7880
+rtc:
+  tcp_port: 7881
+  port_range_start: 7882
+  port_range_end: 7882
+keys:
+  devkey: devkey
+  devsecret: devsecret
+logging:
+  json: false
+  level: debug
+redis:
+  address: localhost:6379
+  username: ""
+  password: ""
+  db: 0
+webhook:
+  enabled: true
+  url: http://localhost:3000/api/webhook
+  events:
+    - participant_joined
+    - participant_left
+    - room_finished 

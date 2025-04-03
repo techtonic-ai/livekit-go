@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>LiveKit Test Room</title>
+    <script src="https://cdn.jsdelivr.net/npm/livekit-client/dist/livekit-client.umd.js"></script>
+    <style>
+        #videos {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 10px;
+        }
+        .video-container {
+            position: relative;
+            min-height: 200px;
+            background: #f0f0f0;
+        }
+        .debug {
+            font-family: monospace;
+            white-space: pre-wrap;
+            background: #f5f5f5;
+            padding: 10px;
+            margin-top: 20px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .config {
+            margin: 20px 0;
+            padding: 10px;
+            background: #e0e0e0;
+        }
+    </style>
+</head>
+<body>
+    <div class="config">
+        <h3>Connection Settings</h3>
+        <p>API URL: <input type="text" id="apiUrl" value="https://your-render-url.onrender.com" style="width: 300px"></p>
+        <p>Room ID: demo-room</p>
+        <button onclick="connect('participant1')">Connect as Participant 1</button>
+        <button onclick="connect('participant2')">Connect as Participant 2</button>
+        <button onclick="disconnect()">Disconnect</button>
+    </div>
+
+    <div id="videos"></div>
+    <div class="debug" id="debug"></div>
+
+    <script>
+        let room;
+        const videosDiv = document.getElementById('videos');
+        const debugDiv = document.getElementById('debug');
+        const apiUrlInput = document.getElementById('apiUrl');
+
+        function log(message) {
+            const timestamp = new Date().toISOString();
+            console.log(`${timestamp}: ${message}`);
+            debugDiv.innerHTML = `${timestamp}: ${message}\n` + debugDiv.innerHTML;
+        }
+
+        async function connect(participant) {
+            try {
+                const apiUrl = apiUrlInput.value;
+                log(`API URL: ${apiUrl}`);
+
+                // Request token from your server
+                log(`Requesting token for ${participant}`);
+                const resp = await fetch(`${apiUrl}/api/token/${participant}`);
+                if (!resp.ok) {
+                    throw new Error(`Failed to get token: ${resp.statusText}`);
+                }
+                const { token, ws_url } = await resp.json();
+                log(`Token received: ${token.substring(0, 20)}...`);
+                log(`WebSocket URL: ${ws_url}`);
+
+                // Connect to LiveKit room
+                log(`Connecting to room: demo-room`);
+                room = new LivekitClient.Room({
+                    adaptiveStream: true,
+                    dynacast: true,
+                });
+
+                room.on(LivekitClient.RoomEvent.Connected, () => {
+                    log('Connected to LiveKit room');
+                });
+
+                room.on(LivekitClient.RoomEvent.Disconnected, () => {
+                    log('Disconnected from LiveKit room');
+                });
+
+                room.on(LivekitClient.RoomEvent.ParticipantConnected, (participant) => {
+                    log(`Participant connected: ${participant.identity}`);
+                });
+
+                room.on(LivekitClient.RoomEvent.ParticipantDisconnected, (participant) => {
+                    log(`Participant disconnected: ${participant.identity}`);
+                });
+
+                room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
+                    log(`Subscribed to track: ${track.kind} from ${participant.identity}`);
+                    if (track.kind === 'video' || track.kind === 'audio') {
+                        const element = track.attach();
+                        const container = document.createElement('div');
+                        container.className = 'video-container';
+                        container.id = `container-${participant.identity}-${track.kind}`;
+                        container.appendChild(element);
+                        videosDiv.appendChild(container);
+                    }
+                });
+
+                room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
+                    log(`Unsubscribed from track: ${track.kind} from ${participant.identity}`);
+                    const container = document.getElementById(`container-${participant.identity}-${track.kind}`);
+                    if (container) {
+                        container.remove();
+                    }
+                });
+
+                // Connect to room
+                log('Connecting to WebSocket...');
+                await room.connect(ws_url, token);
+                log('Connected successfully');
+
+                // Publish local tracks
+                log('Publishing local tracks...');
+                await room.localParticipant.enableCameraAndMicrophone();
+                log('Local tracks published');
+
+            } catch (error) {
+                log(`Error: ${error.message}`);
+                log(`Stack trace: ${error.stack}`);
+            }
+        }
+
+        async function disconnect() {
+            if (room) {
+                await room.disconnect();
+                videosDiv.innerHTML = '';
+                log('Disconnected from room');
+            }
+        }
+
+        // Log browser info
+        log(`Browser: ${navigator.userAgent}`);
+        log(`Protocol: ${window.location.protocol}`);
+        log(`Host: ${window.location.host}`);
+    </script>
+</body>
+</html> 
