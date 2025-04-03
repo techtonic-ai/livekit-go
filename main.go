@@ -23,7 +23,7 @@ func main() {
 	app.Use(recover.New())
 	app.Use(logger.New())
 	app.Use(cors.New(cors.Config{
-		AllowOrigins:     "https://livekit-server-ydpb.onrender.com,http://localhost:3000,http://localhost:8000",
+		AllowOrigins:     "https://livekit-server-ydpb.onrender.com,http://localhost:3000,http://localhost:8000,http://192.168.1.9:8000",
 		AllowHeaders:     "Origin, Content-Type, Accept",
 		AllowMethods:     "GET, POST, PUT, DELETE, OPTIONS",
 		AllowCredentials: true,
@@ -44,6 +44,8 @@ func main() {
 	}
 
 	log.Printf("Server starting on port %s", port)
+	log.Printf("Environment: %s", os.Getenv("ENVIRONMENT"))
+	log.Printf("LiveKit WebSocket URL: %s", os.Getenv("LIVEKIT_WS_URL"))
 	log.Fatal(app.Listen(":" + port))
 }
 
@@ -58,6 +60,7 @@ func getToken(c *fiber.Ctx) error {
 	// Generate LiveKit token
 	token, err := livekit.GenerateToken(ROOM_ID, participant)
 	if err != nil {
+		log.Printf("Error generating token: %v", err)
 		return c.Status(500).JSON(fiber.Map{
 			"error": "Failed to generate token",
 		})
@@ -65,7 +68,8 @@ func getToken(c *fiber.Ctx) error {
 
 	wsHost := os.Getenv("LIVEKIT_WS_URL")
 	if wsHost == "" {
-		wsHost = "wss://livekit-server-ydpb.onrender.com"
+		// Default to local development if not set
+		wsHost = "ws://192.168.1.9:7881"
 	}
 
 	log.Printf("\n=== LiveKit Connection Details ===")

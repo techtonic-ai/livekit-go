@@ -93,13 +93,14 @@
 
                 // Request token from your server
                 log(`Requesting token for ${participant}`);
-                const resp = await fetch(`${apiUrl}/api/token/${participant}`);
-                if (!resp.ok) {
-                    throw new Error(`Failed to get token: ${resp.statusText}`);
+                const response = await fetch(`${apiUrl}/api/token/${participant}`);
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error(`Failed to get token: ${response.status} ${errorText}`);
                 }
-                const { token, ws_url } = await resp.json();
-                log(`Token received: ${token.substring(0, 20)}...`);
-                log(`WebSocket URL: ${ws_url}`);
+                const data = await response.json();
+                log(`Received token: ${data.token}`);
+                log(`WebSocket URL from server: ${data.ws_url}`);
 
                 // Connect to LiveKit room
                 log(`Connecting to room: ${roomId}`);
@@ -108,55 +109,71 @@
                     dynacast: true,
                 });
 
-                room.on(LivekitClient.RoomEvent.Connected, () => {
-                    log('Connected to LiveKit room');
+                // Set up event handlers
+                room.on('connected', () => {
+                    log('Connected to room');
+                    updateConnectionStatus(true);
                 });
 
-                room.on(LivekitClient.RoomEvent.Disconnected, () => {
-                    log('Disconnected from LiveKit room');
+                room.on('disconnected', () => {
+                    log('Disconnected from room');
+                    updateConnectionStatus(false);
                 });
 
-                room.on(LivekitClient.RoomEvent.ParticipantConnected, (participant) => {
-                    log(`Participant connected: ${participant.identity}`);
+                room.on('connectionStateChanged', (state) => {
+                    log(`Connection state changed: ${state}`);
                 });
 
-                room.on(LivekitClient.RoomEvent.ParticipantDisconnected, (participant) => {
-                    log(`Participant disconnected: ${participant.identity}`);
-                });
+                room.on('participantConnected', handleParticipant);
+                room.on('participantDisconnected', handleParticipantDisconnect);
+                room.on('trackSubscribed', handleTrack);
+                room.on('trackUnsubscribed', handleTrackUnsubscribed);
 
-                room.on(LivekitClient.RoomEvent.TrackSubscribed, (track, publication, participant) => {
-                    log(`Subscribed to track: ${track.kind} from ${participant.identity}`);
-                    if (track.kind === 'video' || track.kind === 'audio') {
-                        const element = track.attach();
-                        const container = document.createElement('div');
-                        container.className = 'video-container';
-                        container.id = `container-${participant.identity}-${track.kind}`;
-                        container.appendChild(element);
-                        videosDiv.appendChild(container);
-                    }
-                });
-
-                room.on(LivekitClient.RoomEvent.TrackUnsubscribed, (track, publication, participant) => {
-                    log(`Unsubscribed from track: ${track.kind} from ${participant.identity}`);
-                    const container = document.getElementById(`container-${participant.identity}-${track.kind}`);
-                    if (container) {
-                        container.remove();
-                    }
-                });
-
-                // Connect to room
-                log('Connecting to WebSocket...');
-                await room.connect(ws_url, token);
-                log('Connected successfully');
-
-                // Publish local tracks
-                log('Publishing local tracks...');
-                await room.localParticipant.enableCameraAndMicrophone();
-                log('Local tracks published');
-
+                // Connect to the room
+                await room.connect(wsUrl, data.token);
             } catch (error) {
-                log(`Error: ${error.message}`);
+                log(`Error connecting: ${error.message}`);
                 log(`Stack trace: ${error.stack}`);
+                updateConnectionStatus(false);
+            }
+        }
+
+        function updateConnectionStatus(connected) {
+            const status = document.getElementById('connectionStatus');
+            status.textContent = connected ? 'Connected' : 'Disconnected';
+            status.style.color = connected ? 'green' : 'red';
+        }
+
+        function handleParticipant(participant) {
+            log(`Participant ${participant.identity} connected`);
+            participant.on('trackSubscribed', handleTrack);
+            participant.on('trackUnsubscribed', handleTrackUnsubscribed);
+        }
+
+        function handleParticipantDisconnect(participant) {
+            log(`Participant ${participant.identity} disconnected`);
+        }
+
+        function handleTrack(track, publication, participant) {
+            log(`Track ${track.kind} from ${participant.identity} subscribed`);
+            if (track.kind === 'video') {
+                const videoElement = document.createElement('video');
+                videoElement.id = `video-${participant.identity}`;
+                videoElement.autoplay = true;
+                videoElement.playsInline = true;
+                videoElement.muted = participant.identity === 'participant1';
+                track.attach(videoElement);
+                document.getElementById('videos').appendChild(videoElement);
+            }
+        }
+
+        function handleTrackUnsubscribed(track, publication, participant) {
+            log(`Track ${track.kind} from ${participant.identity} unsubscribed`);
+            if (track.kind === 'video') {
+                const videoElement = document.getElementById(`video-${participant.identity}`);
+                if (videoElement) {
+                    videoElement.remove();
+                }
             }
         }
 
